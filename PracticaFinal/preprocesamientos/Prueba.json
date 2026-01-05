@@ -1,0 +1,19 @@
+{
+    "name": "Prueba",
+    "steps": [
+        {
+            "name": "grises",
+            "params": {}
+        },
+        {
+            "name": "mediana",
+            "params": {
+                "k": 5
+            }
+        },
+        {
+            "name": "binarizar_otsu",
+            "params": {}
+        }
+    ]
+}

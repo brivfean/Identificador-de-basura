@@ -76,6 +76,8 @@ from machine_learning import CNNClassifier
 import threading
 from tkinter import filedialog, messagebox
 
+from preprocessing import PreprocessingPipeline, PREPROCESSING_FUNCTIONS
+
 class App:
     def __init__(self, root):
         self.root = root
@@ -159,6 +161,19 @@ class App:
         self.menu_ml = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Machine learning", menu=self.menu_ml)
 
+        # -------- Preprocesamiento --------
+        self.menu_preprocesamiento = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Preprocesamiento", menu=self.menu_preprocesamiento)
+
+        self.menu_preprocesamiento.add_command(
+            label="Generar preprocesamiento",
+            command=self._generar_preprocesamiento
+        )
+
+        self.menu_preprocesamiento.add_command(
+            label="Usar preprocesamiento",
+            command=self._usar_preprocesamiento
+        )
 
         self.root.config(menu=menubar)
 
@@ -1120,3 +1135,65 @@ class App:
                 messagebox.showerror("Error", str(e))
 
         threading.Thread(target=tarea, daemon=True).start()
+
+    def _generar_preprocesamiento(self):
+        nombre = simpledialog.askstring(
+            "Nuevo preprocesamiento",
+            "Nombre del preprocesamiento:"
+        )
+        if not nombre:
+            return
+
+        pipeline = PreprocessingPipeline(nombre)
+
+        # Ejemplo fijo (luego lo haces dinámico con UI)
+        pipeline.add_step("grises", PREPROCESSING_FUNCTIONS["grises"])
+        pipeline.add_step("mediana", PREPROCESSING_FUNCTIONS["mediana"], k=5)
+        pipeline.add_step("binarizar_otsu", PREPROCESSING_FUNCTIONS["binarizar_otsu"])
+
+        pipeline.save("preprocesamientos")
+
+        messagebox.showinfo(
+            "Preprocesamiento",
+            f"Preprocesamiento '{nombre}' guardado correctamente."
+        )
+
+    def _usar_preprocesamiento(self):
+        # Seleccionar archivo de preprocesamiento
+        prep_path = filedialog.askopenfilename(
+            title="Selecciona un preprocesamiento",
+            initialdir="preprocesamientos",
+            filetypes=[("Preprocesamiento", "*.json")]
+        )
+        if not prep_path:
+            return
+
+        # Carpeta origen
+        input_dir = filedialog.askdirectory(
+            title="Carpeta con imágenes originales"
+        )
+        if not input_dir:
+            return
+
+        # Carpeta destino
+        output_dir = filedialog.askdirectory(
+            title="Carpeta destino para imágenes preprocesadas"
+        )
+        if not output_dir:
+            return
+
+        try:
+            pipeline = PreprocessingPipeline.load(
+                prep_path,
+                PREPROCESSING_FUNCTIONS
+            )
+
+            pipeline.apply_to_folder(input_dir, output_dir)
+
+            messagebox.showinfo(
+                "Preprocesamiento",
+                "Preprocesamiento aplicado correctamente."
+            )
+
+        except Exception as e:
+            messagebox.showerror("Error", str(e))

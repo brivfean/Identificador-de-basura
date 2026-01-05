@@ -1,35 +1,96 @@
+import os
+import cv2
 import json
-from preprocessing import operations
 
-OPERACIONES = {
-    "grises": operations.grises,
-    "gaussiano": operations.gaussiano,
-    "binarizacion_umbral": operations.binarizacion_umbral
-}
 
 class PreprocessingPipeline:
-    def __init__(self, steps=None):
-        self.steps = steps or []
+    def __init__(self, name):
+        self.name = name
+        self.steps = []
 
-    def add_step(self, op_name, **params):
+    # ==================================================
+    # DEFINICIÓN DEL PIPELINE
+    # ==================================================
+    def add_step(self, step_name, func, **params):
         self.steps.append({
-            "op": op_name,
+            "name": step_name,
+            "func": func,
             "params": params
         })
 
-    def apply(self, img):
-        resultado = img
+    # ==================================================
+    # APLICAR A UNA SOLA IMAGEN
+    # ==================================================
+    def apply_to_image(self, img_cv):
+        result = img_cv
         for step in self.steps:
-            op = OPERACIONES[step["op"]]
-            resultado = op(resultado, **step["params"])
-        return resultado
+            result = step["func"](result, **step["params"])
+        return result
 
-    def save(self, path):
+    # ==================================================
+    # APLICAR A UNA CARPETA
+    # ==================================================
+    def apply_to_folder(self, input_dir, output_dir):
+        if not os.path.isdir(input_dir):
+            raise ValueError("Directorio de entrada inválido")
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        for filename in os.listdir(input_dir):
+            if not filename.lower().endswith((".jpg", ".png", ".jpeg")):
+                continue
+
+            input_path = os.path.join(input_dir, filename)
+            output_path = os.path.join(output_dir, filename)
+
+            img = cv2.imread(input_path)
+            if img is None:
+                continue
+
+            processed = self.apply_to_image(img)
+            cv2.imwrite(output_path, processed)
+
+    # ==================================================
+    # GUARDADO
+    # ==================================================
+    def save(self, directory):
+        os.makedirs(directory, exist_ok=True)
+
+        data = {
+            "name": self.name,
+            "steps": [
+                {
+                    "name": step["name"],
+                    "params": step["params"]
+                } for step in self.steps
+            ]
+        }
+
+        path = os.path.join(directory, f"{self.name}.json")
         with open(path, "w") as f:
-            json.dump(self.steps, f, indent=4)
+            json.dump(data, f, indent=4)
 
+    # ==================================================
+    # CARGA
+    # ==================================================
     @staticmethod
-    def load(path):
+    def load(path, function_registry):
         with open(path, "r") as f:
-            steps = json.load(f)
-        return PreprocessingPipeline(steps)
+            data = json.load(f)
+
+        pipeline = PreprocessingPipeline(data["name"])
+
+        for step in data["steps"]:
+            name = step["name"]
+            params = step["params"]
+
+            if name not in function_registry:
+                raise KeyError(f"Función no registrada: {name}")
+
+            pipeline.add_step(
+                name,
+                function_registry[name],
+                **params
+            )
+
+        return pipeline

@@ -5,19 +5,31 @@ import numpy as np
 class ModelosColor:
 
     # ==================================================
+    # UTILIDAD INTERNA
+    # ==================================================
+    @staticmethod
+    def _asegurar_bgr(img_cv):
+        if img_cv.ndim == 2:
+            return cv2.cvtColor(img_cv, cv2.COLOR_GRAY2BGR)
+        return img_cv
+
+    # ==================================================
     # ESCALA DE GRISES
     # ==================================================
     @staticmethod
     def a_grises(img_cv):
-        return cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        if img_cv.ndim == 3:
+            return cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        return img_cv
 
     # ==================================================
-    # RGB (visualización correcta)
+    # RGB (canales)
     # ==================================================
     @staticmethod
     def canal_rgb(img_cv, canal):
-        b, g, r = cv2.split(img_cv)
+        img_cv = ModelosColor._asegurar_bgr(img_cv)
 
+        b, g, r = cv2.split(img_cv)
         cero = np.zeros_like(b)
 
         if canal == "R":
@@ -30,11 +42,12 @@ class ModelosColor:
             raise ValueError("Canal RGB inválido")
 
     # ==================================================
-    # CMYK (visualización correcta)
+    # CMYK
     # ==================================================
     @staticmethod
     def canal_cmyk(img_cv, canal):
-        # BGR → RGB normalizado
+        img_cv = ModelosColor._asegurar_bgr(img_cv)
+
         rgb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
         r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
 
@@ -44,45 +57,26 @@ class ModelosColor:
         y = (1 - b - k) / (1 - k + 1e-8)
 
         if canal == "C":
-            # Cyan = G + B
-            img = np.stack([
-                np.zeros_like(c),
-                c,
-                c
-            ], axis=2)
-
+            img = np.stack([np.zeros_like(c), c, c], axis=2)
         elif canal == "M":
-            # Magenta = R + B
-            img = np.stack([
-                m,
-                np.zeros_like(m),
-                m
-            ], axis=2)
-
+            img = np.stack([m, np.zeros_like(m), m], axis=2)
         elif canal == "Y":
-            # Yellow = R + G
-            img = np.stack([
-                y,
-                y,
-                np.zeros_like(y)
-            ], axis=2)
-
+            img = np.stack([y, y, np.zeros_like(y)], axis=2)
         elif canal == "K":
-            # Negro → escala de grises real
             gray = (k * 255).astype(np.uint8)
             return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-
         else:
             raise ValueError("Canal CMYK inválido")
 
-        # Convertir a uint8 BGR
         return (img * 255).astype(np.uint8)
 
     # ==================================================
-    # HSL (visualización correcta)
+    # HSL
     # ==================================================
     @staticmethod
     def canal_hsl(img_cv, canal):
+        img_cv = ModelosColor._asegurar_bgr(img_cv)
+
         hls = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HLS)
         h, l, s = cv2.split(hls)
 
@@ -102,13 +96,13 @@ class ModelosColor:
     # ==================================================
     @staticmethod
     def binarizar_umbral(img_cv, t):
-        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        gray = ModelosColor.a_grises(img_cv)
         _, binaria = cv2.threshold(gray, t, 255, cv2.THRESH_BINARY)
         return binaria
 
     @staticmethod
     def binarizar_otsu(img_cv):
-        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        gray = ModelosColor.a_grises(img_cv)
         _, binaria = cv2.threshold(
             gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )

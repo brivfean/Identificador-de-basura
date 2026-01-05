@@ -29,4 +29,7 @@ def separar_rgb_cv(img_cv):
     ]
 
 def convertir_a_grises_cv(img_cv):
-    return cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    if img_cv.ndim == 3:
+        return cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    return img_cv
+
