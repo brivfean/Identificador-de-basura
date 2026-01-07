@@ -14,6 +14,11 @@ from processing.ruido import *
 from processing.aritmeticas import *
 from processing.logicas import *
 
+# ===============================
+# Normalizacion
+# ===============================
+from normalization.normalizador import Normalizador
+
 # ==================================================
 # REGISTRO DE FUNCIONES DE PREPROCESAMIENTO
 # ==================================================
@@ -88,4 +93,12 @@ PREPROCESSING_FUNCTIONS = {
     # ----------------------------------
     "pseudocolor_jet": lambda img: Pseudocolor.aplicar_opencv(img, "JET"),
     "pseudocolor_hot": lambda img: Pseudocolor.aplicar_opencv(img, "HOT"),
+
+    # ----------------------------------
+    # Normalización
+    # ----------------------------------
+    "normalizar_resolucion": lambda img, **params: (
+    Normalizador(img).normalizar_resolucion(**params)
+    ),
+
 }

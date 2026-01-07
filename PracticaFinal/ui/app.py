@@ -76,7 +76,11 @@ from machine_learning import CNNClassifier
 import threading
 from tkinter import filedialog, messagebox
 
+from segmentation import Segmentador
+
 from preprocessing import PreprocessingPipeline, PREPROCESSING_FUNCTIONS
+
+from normalization.normalizador import Normalizador
 
 class App:
     def __init__(self, root):
@@ -156,14 +160,24 @@ class App:
         # -------- Pseudocolor --------
         self.menu_pseudocolor = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Pseudocolor", menu=self.menu_pseudocolor)
+        
+        # -------- Preprocesamiento --------
+        self.menu_preprocesamiento = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Preprocesamiento", menu=self.menu_preprocesamiento)
+        
+        # -------- Normalizacion --------
+        self.menu_normalizacion = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Normalizacion", menu=self.menu_normalizacion)
 
+        # -------- Segmentacion --------
+        self.menu_segmentacion = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Segmentacion", menu=self.menu_segmentacion)
+        
         # -------- Machine Learning --------
         self.menu_ml = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Machine learning", menu=self.menu_ml)
 
-        # -------- Preprocesamiento --------
-        self.menu_preprocesamiento = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Preprocesamiento", menu=self.menu_preprocesamiento)
+        
 
         self.menu_preprocesamiento.add_command(
             label="Generar preprocesamiento",
@@ -187,6 +201,8 @@ class App:
         self._cargar_menu_analisis()
         self._cargar_menu_pseudocolor()
         self._cargar_menu_modelos_color()
+        self._cargar_menu_segmentacion()
+        self._cargar_menu_normalizacion()
         self._cargar_menu_ml()
 
     # ==========================================================
@@ -1197,3 +1213,145 @@ class App:
 
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+    def _cargar_menu_segmentacion(self):
+        self.menu_segmentacion.delete(0, tk.END)
+
+        self.menu_segmentacion.add_command(
+            label="Detección de formas",
+            command=self._segmentacion_formas
+        )
+
+        self.menu_segmentacion.add_separator()
+
+        self.menu_segmentacion.add_command(
+            label="Hit-or-Miss",
+            command=self._segmentacion_hit_or_miss
+        )
+
+
+    def _segmentacion_formas(self):
+        if self.imagen_original_cv is None:
+            messagebox.showwarning("Aviso", "Primero carga una imagen.")
+            return
+
+        seg = Segmentador(self.imagen_original_cv)
+        resultado, objetos = seg.formas_geometricas()
+
+        self._actualizar_resultado(resultado)
+
+        self.text_info.delete("1.0", tk.END)
+        self.text_info.insert(
+            tk.END, f"Objetos detectados: {len(objetos)}\n"
+        )
+
+        for o in objetos:
+            self.text_info.insert(
+                tk.END,
+                f"- Objeto {o['id']}: {o['forma']} | Área={o['area']:.0f}\n"
+            )
+
+    def _segmentacion_hit_or_miss(self):
+        if self.imagen_original_cv is None:
+            messagebox.showwarning("Aviso", "No hay imagen para segmentar.")
+            return
+
+        ruta = filedialog.askopenfilename(
+            title="Selecciona imagen patrón (binaria)",
+            filetypes=[("Imágenes", "*.png *.jpg *.jpeg")]
+        )
+        if not ruta:
+            return
+
+        patron = cv2.imread(ruta)
+
+        seg = Segmentador(self.imagen_original_cv)
+        resultado, encontrados = seg.hit_or_miss(patron)
+
+        self._actualizar_resultado(resultado)
+
+        self.text_info.delete("1.0", tk.END)
+        self.text_info.insert(
+            tk.END,
+            f"Hit-or-Miss aplicado\nPatrones encontrados: {encontrados}\n"
+        )
+
+    def _cargar_menu_normalizacion(self):
+        self.menu_normalizacion.delete(0, tk.END)
+
+        # -----------------------------
+        # Resolución
+        # -----------------------------
+        self.menu_normalizacion.add_command(
+            label="Normalizar resolución (256x256)",
+            command=lambda: self._normalizar_resolucion(256, 256)
+        )
+
+        self.menu_normalizacion.add_command(
+            label="Normalizar resolución (512x512)",
+            command=lambda: self._normalizar_resolucion(512, 512)
+        )
+
+        self.menu_normalizacion.add_separator()
+
+        # -----------------------------
+        # Formato de archivo
+        # -----------------------------
+        self.menu_normalizacion.add_command(
+            label="Guardar como PNG",
+            command=lambda: self._guardar_formato("png")
+        )
+
+        self.menu_normalizacion.add_command(
+            label="Guardar como JPG",
+            command=lambda: self._guardar_formato("jpg")
+        )
+
+        self.menu_normalizacion.add_command(
+            label="Guardar como BMP",
+            command=lambda: self._guardar_formato("bmp")
+        )
+
+    def _normalizar_resolucion(self, w, h):
+        if self.imagen_original_cv is None:
+            messagebox.showwarning("Aviso", "Primero carga una imagen.")
+            return
+
+        norm = Normalizador(self.imagen_original_cv)
+        resultado = norm.normalizar_resolucion(w, h)
+
+        self._actualizar_resultado(resultado)
+
+        self.text_info.delete("1.0", tk.END)
+        self.text_info.insert(
+            tk.END, f"Resolución normalizada a {w}x{h}.\n"
+        )
+
+    def _guardar_formato(self, formato):
+        if self.imagen_resultado_cv is None:
+            messagebox.showwarning(
+                "Aviso", "No hay imagen para guardar."
+            )
+            return
+
+        ruta = filedialog.asksaveasfilename(
+            defaultextension=f".{formato}",
+            filetypes=[(formato.upper(), f"*.{formato}")]
+        )
+
+        if not ruta:
+            return
+
+        norm = Normalizador(self.imagen_resultado_cv)
+        ruta_final = norm.guardar_como(ruta, formato)
+
+        self.text_info.delete("1.0", tk.END)
+        self.text_info.insert(
+            tk.END, f"Imagen guardada como {ruta_final}\n"
+        )
+
+
+
+
+
+

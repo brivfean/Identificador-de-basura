@@ -1,0 +1,26 @@
+{
+    "name": "Proyecto",
+    "steps": [
+        {
+        "name": "normalizar_resolucion",
+        "params": {
+            "ancho": 256,
+            "alto": 256
+        }
+        },
+        {
+            "name": "grises",
+            "params": {}
+        },
+        {
+            "name": "mediana",
+            "params": {
+                "k": 5
+            }
+        },
+        {
+            "name": "binarizar_otsu",
+            "params": {}
+        }
+    ]
+}
