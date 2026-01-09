@@ -1138,9 +1138,39 @@ class App:
             label="Umbral manual",
             command=self._binarizacion_umbral
         )
+
+        menu_bin.add_command(
+            label="Umbral inverso",
+            command=self._binarizacion_umbral_inv
+        )
+
+        menu_bin.add_command(
+            label="Umbral truncado",
+            command=self._binarizacion_truncado
+        )
+
+        menu_bin.add_command(
+            label="Umbral a cero",
+            command=self._binarizacion_a_cero
+        )
+
+        menu_bin.add_separator()
+
         menu_bin.add_command(
             label="Otsu",
             command=self._binarizacion_otsu
+        )
+
+        menu_bin.add_separator()
+
+        menu_bin.add_command(
+            label="Adaptativo (Media)",
+            command=self._binarizacion_adaptativa_media
+        )
+
+        menu_bin.add_command(
+            label="Adaptativo (Gauss)",
+            command=self._binarizacion_adaptativa_gauss
         )
 
     def _modelo_grises(self):
@@ -1176,6 +1206,87 @@ class App:
 
     def _binarizacion_otsu(self):
         self.aplicar_operacion(ModelosColor.binarizar_otsu)
+
+    def _binarizacion_umbral_inv(self):
+        t = simpledialog.askinteger(
+            "Binarización inversa",
+            "Valor de umbral (0–255):",
+            minvalue=0,
+            maxvalue=255
+        )
+
+        if t is not None:
+            self.aplicar_operacion(
+                lambda img: ModelosColor.binarizar_umbral_inverso(img, t)
+            )
+
+
+    def _binarizacion_truncado(self):
+        t = simpledialog.askinteger(
+            "Umbral truncado",
+            "Valor de umbral (0–255):",
+            minvalue=0,
+            maxvalue=255
+        )
+
+        if t is not None:
+            self.aplicar_operacion(
+                lambda img: ModelosColor.binarizar_truncado(img, t)
+            )
+
+
+    def _binarizacion_a_cero(self):
+        t = simpledialog.askinteger(
+            "Umbral a cero",
+            "Valor de umbral (0–255):",
+            minvalue=0,
+            maxvalue=255
+        )
+
+        if t is not None:
+            self.aplicar_operacion(
+                lambda img: ModelosColor.binarizar_a_cero(img, t)
+            )
+
+
+    def _binarizacion_adaptativa_media(self):
+        block = simpledialog.askinteger(
+            "Adaptativa (Media)",
+            "Tamaño de bloque (impar):",
+            minvalue=3
+        )
+
+        if block and block % 2 == 1:
+            c = simpledialog.askinteger(
+                "Adaptativa (Media)",
+                "Constante C:",
+                initialvalue=2
+            )
+
+            if c is not None:
+                self.aplicar_operacion(
+                    lambda img: ModelosColor.binarizar_adaptativa_media(img, block, c)
+                )
+
+
+    def _binarizacion_adaptativa_gauss(self):
+        block = simpledialog.askinteger(
+            "Adaptativa (Gauss)",
+            "Tamaño de bloque (impar):",
+            minvalue=3
+        )
+
+        if block and block % 2 == 1:
+            c = simpledialog.askinteger(
+                "Adaptativa (Gauss)",
+                "Constante C:",
+                initialvalue=2
+            )
+
+            if c is not None:
+                self.aplicar_operacion(
+                    lambda img: ModelosColor.binarizar_adaptativa_gauss(img, block, c)
+                )
 
     def _cargar_menu_ml(self):
         menu_ml = tk.Menu(self.menu_ml, tearoff=0)

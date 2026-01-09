@@ -101,9 +101,52 @@ class ModelosColor:
         return binaria
 
     @staticmethod
+    def binarizar_umbral_inverso(img_cv, t):
+        gray = ModelosColor.a_grises(img_cv)
+        _, binaria = cv2.threshold(gray, t, 255, cv2.THRESH_BINARY_INV)
+        return binaria
+
+    @staticmethod
+    def binarizar_truncado(img_cv, t):
+        gray = ModelosColor.a_grises(img_cv)
+        _, binaria = cv2.threshold(gray, t, 255, cv2.THRESH_TRUNC)
+        return binaria
+
+    @staticmethod
+    def binarizar_a_cero(img_cv, t):
+        gray = ModelosColor.a_grises(img_cv)
+        _, binaria = cv2.threshold(gray, t, 255, cv2.THRESH_TOZERO)
+        return binaria
+
+    @staticmethod
     def binarizar_otsu(img_cv):
         gray = ModelosColor.a_grises(img_cv)
         _, binaria = cv2.threshold(
-            gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+            gray, 0, 255,
+            cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
         return binaria
+
+    @staticmethod
+    def binarizar_adaptativa_media(img_cv, block_size=11, c=2):
+        gray = ModelosColor.a_grises(img_cv)
+        return cv2.adaptiveThreshold(
+            gray,
+            255,
+            cv2.ADAPTIVE_THRESH_MEAN_C,
+            cv2.THRESH_BINARY,
+            block_size,
+            c
+        )
+
+    @staticmethod
+    def binarizar_adaptativa_gauss(img_cv, block_size=11, c=2):
+        gray = ModelosColor.a_grises(img_cv)
+        return cv2.adaptiveThreshold(
+            gray,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            block_size,
+            c
+        )
