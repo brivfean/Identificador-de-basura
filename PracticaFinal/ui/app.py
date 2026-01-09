@@ -32,7 +32,12 @@ from processing.morfologia import (
     erosion,
     dilatacion,
     apertura,
-    cierre
+    cierre,
+    erosion_color,
+    dilatacion_color,
+    gradiente_morfologico_color,
+    tophat_color,
+    blackhat_color
 )
 
 import matplotlib.pyplot as plt
@@ -555,77 +560,160 @@ class App:
             self.aplicar_operacion(ruido_pimienta, p)
 
     def _cargar_menu_morfologia(self):
+        self.menu_morfologia.delete(0, tk.END)
+
+        # ----------------------------------
+        # Morfología binaria / gris
+        # ----------------------------------
         self.menu_morfologia.add_command(
-            label="Erosión",
+            label="Erosión (gris)",
             command=self._morfologia_erosion
         )
 
         self.menu_morfologia.add_command(
-            label="Dilatación",
+            label="Dilatación (gris)",
             command=self._morfologia_dilatacion
         )
 
         self.menu_morfologia.add_separator()
 
         self.menu_morfologia.add_command(
-            label="Apertura",
+            label="Apertura (gris)",
             command=self._morfologia_apertura
         )
 
         self.menu_morfologia.add_command(
-            label="Cierre",
+            label="Cierre (gris)",
             command=self._morfologia_cierre
         )
 
-    # =========================
-    # MORFOLOGÍA - CALLBACKS
-    # =========================
+        self.menu_morfologia.add_separator()
+
+        # ----------------------------------
+        # Morfología en color
+        # ----------------------------------
+        self.menu_morfologia.add_command(
+            label="Erosión (color)",
+            command=self._morfologia_erosion_color
+        )
+
+        self.menu_morfologia.add_command(
+            label="Dilatación (color)",
+            command=self._morfologia_dilatacion_color
+        )
+
+        self.menu_morfologia.add_command(
+            label="Gradiente morfológico (color)",
+            command=self._morfologia_gradiente_color
+        )
+
+        self.menu_morfologia.add_command(
+            label="Top-Hat (color)",
+            command=self._morfologia_tophat_color
+        )
+
+        self.menu_morfologia.add_command(
+            label="Black-Hat (color)",
+            command=self._morfologia_blackhat_color
+        )
 
     def _morfologia_erosion(self):
         k = simpledialog.askinteger(
-            "Erosión",
+            "Erosión (gris)",
             "Tamaño del kernel:",
             minvalue=1
         )
         if k:
             self.aplicar_operacion(erosion, k)
 
+
     def _morfologia_dilatacion(self):
         k = simpledialog.askinteger(
-            "Dilatación",
+            "Dilatación (gris)",
             "Tamaño del kernel:",
             minvalue=1
         )
         if k:
             self.aplicar_operacion(dilatacion, k)
 
+
     def _morfologia_apertura(self):
         k = simpledialog.askinteger(
-            "Apertura",
+            "Apertura (gris)",
             "Tamaño del kernel:",
             minvalue=1
         )
 
         if k:
-            def apertura_wrapper(img):
+            def wrapper(img):
                 _, morph = apertura(img, k)
                 return morph
 
-            self.aplicar_operacion(apertura_wrapper)
+            self.aplicar_operacion(wrapper)
+
 
     def _morfologia_cierre(self):
         k = simpledialog.askinteger(
-            "Cierre",
+            "Cierre (gris)",
             "Tamaño del kernel:",
             minvalue=1
         )
 
         if k:
-            def cierre_wrapper(img):
+            def wrapper(img):
                 _, morph = cierre(img, k)
                 return morph
 
-            self.aplicar_operacion(cierre_wrapper)
+            self.aplicar_operacion(wrapper)
+
+    def _morfologia_erosion_color(self):
+        k = simpledialog.askinteger(
+            "Erosión (color)",
+            "Tamaño del kernel:",
+            minvalue=1
+        )
+        if k:
+            self.aplicar_operacion(erosion_color, k)
+
+
+    def _morfologia_dilatacion_color(self):
+        k = simpledialog.askinteger(
+            "Dilatación (color)",
+            "Tamaño del kernel:",
+            minvalue=1
+        )
+        if k:
+            self.aplicar_operacion(dilatacion_color, k)
+
+
+    def _morfologia_gradiente_color(self):
+        k = simpledialog.askinteger(
+            "Gradiente morfológico (color)",
+            "Tamaño del kernel:",
+            minvalue=1
+        )
+        if k:
+            self.aplicar_operacion(gradiente_morfologico_color, k)
+
+
+    def _morfologia_tophat_color(self):
+        k = simpledialog.askinteger(
+            "Top-Hat (color)",
+            "Tamaño del kernel:",
+            minvalue=1
+        )
+        if k:
+            self.aplicar_operacion(tophat_color, k)
+
+
+    def _morfologia_blackhat_color(self):
+        k = simpledialog.askinteger(
+            "Black-Hat (color)",
+            "Tamaño del kernel:",
+            minvalue=1
+        )
+        if k:
+            self.aplicar_operacion(blackhat_color, k)
 
     def _cargar_menu_histogramas(self):
         self.menu_histogramas.add_command(
@@ -1141,9 +1229,22 @@ class App:
                 results = clf.predict(image_paths)
 
                 texto = "Resultados:\n\n"
-                for path, clase in results:
+                for r in results:
+                    path = r["image"]
+                    clase = r["predicted_class"]
+                    confianza = r["confidence"]
+                    top = r["top_predictions"]
+
                     nombre = os.path.basename(path)
-                    texto += f"{nombre} → {clase}\n"
+
+                    texto += f"{nombre} → {clase} ({confianza:.2f}%)\n"
+                    texto += "   Siguientes similitudes:\n"
+
+                    for p in top[1:]:
+                        texto += f"      - {p['class']}: {p['confidence']:.2f}%\n"
+
+                    texto += "\n"
+
 
                 messagebox.showinfo("Predicción ML", texto)
 

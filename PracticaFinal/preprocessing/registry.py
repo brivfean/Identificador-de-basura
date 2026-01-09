@@ -37,14 +37,6 @@ PREPROCESSING_FUNCTIONS = {
     "gaussiano": filtro_gaussiano,
 
     # ----------------------------------
-    # Morfología
-    # ----------------------------------
-    "erosion": erosion,
-    "dilatacion": dilatacion,
-    "apertura": apertura,
-    "cierre": cierre,
-
-    # ----------------------------------
     # Ruido
     # ----------------------------------
     "ruido_sal_pimienta": ruido_sal_pimienta,
@@ -100,5 +92,15 @@ PREPROCESSING_FUNCTIONS = {
     "normalizar_resolucion": lambda img, **params: (
     Normalizador(img).normalizar_resolucion(**params)
     ),
+
+    # ----------------------------------
+    # Morfologia
+    # ----------------------------------
+    "erosion_color": erosion_color,
+    "dilatacion_color": dilatacion_color,
+    "gradiente_color": gradiente_morfologico_color,
+    "tophat_color": tophat_color,
+    "blackhat_color": blackhat_color,
+
 
 }

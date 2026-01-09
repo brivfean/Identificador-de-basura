@@ -136,7 +136,7 @@ class CNNClassifier:
     # ==================================================
     # PREDICCIÓN
     # ==================================================
-    def predict(self, image_paths):
+    def predict(self, image_paths, top_k=3):
         if self.model is None:
             raise RuntimeError("Modelo no cargado.")
 
@@ -153,11 +153,30 @@ class CNNClassifier:
             img_array = np.array(img, dtype=np.float32) / 255.0
             img_array = np.expand_dims(img_array, axis=0)
 
-            prediction = self.model.predict(img_array, verbose=0)
-            class_index = int(np.argmax(prediction))
+            predictions = self.model.predict(img_array, verbose=0)[0]
 
-            predicted_class = index_to_class[class_index]
-            results.append((path, predicted_class))
+            # Obtener índices ordenados por probabilidad (desc)
+            sorted_indices = np.argsort(predictions)[::-1][:top_k]
+
+            top_predictions = []
+            for idx in sorted_indices:
+                class_name = index_to_class[idx]
+                confidence = float(predictions[idx]) * 100.0
+                top_predictions.append(
+                    {
+                        "class": class_name,
+                        "confidence": round(confidence, 2)
+                    }
+                )
+
+            results.append(
+                {
+                    "image": path,
+                    "predicted_class": top_predictions[0]["class"],
+                    "confidence": top_predictions[0]["confidence"],
+                    "top_predictions": top_predictions
+                }
+            )
 
         return results
 
