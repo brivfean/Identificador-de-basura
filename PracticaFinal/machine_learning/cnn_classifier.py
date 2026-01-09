@@ -9,7 +9,6 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-
 class CNNClassifier:
     def __init__(self, input_size=(224, 224)):
         self.input_size = input_size
