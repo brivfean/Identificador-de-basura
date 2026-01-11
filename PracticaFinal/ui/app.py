@@ -106,6 +106,19 @@ class App:
 
         self.modificar_sobre_marcha = tk.BooleanVar(value=False)
 
+
+
+        # =========================
+        # Historial (Deshacer / Rehacer)
+        # =========================
+        # Cada snapshot guarda: imagen_actual_cv, imagen_resultado_cv, imagen_gris
+        self._undo_stack = []
+        self._redo_stack = []
+        self._history_max = 30
+
+        # Atajos de teclado
+        self.root.bind_all("<Control-z>", lambda e: self._undo())
+        self.root.bind_all("<Control-y>", lambda e: self._redo())
         # =========================
         # Construcción UI
         # =========================
@@ -124,7 +137,22 @@ class App:
         menu_archivo.add_command(label="Guardar imagen", command=self._guardar_imagen)
         menu_archivo.add_separator()
         menu_archivo.add_command(label="Salir", command=self.root.quit)
+        
         menubar.add_cascade(label="Archivo", menu=menu_archivo)
+
+        # -------- Edición --------
+        self.menu_edicion = tk.Menu(menubar, tearoff=0)
+        self.menu_edicion.add_command(
+            label="Deshacer",
+            command=self._undo,
+            accelerator="Ctrl+Z"
+        )
+        self.menu_edicion.add_command(
+            label="Rehacer",
+            command=self._redo,
+            accelerator="Ctrl+Y"
+        )
+        menubar.add_cascade(label="Edición", menu=self.menu_edicion)
 
         # -------- Filtros --------
         self.menu_filtros = tk.Menu(menubar, tearoff=0)
@@ -235,15 +263,32 @@ class App:
         self.label_resultado = ttk.Label(frame_resultado)
         self.label_resultado.pack(expand=True)
 
-        # -------- Checkbox --------
-        frame_checkbox = ttk.Frame(main_frame)
-        frame_checkbox.pack(fill=tk.X, pady=10)
+        # -------- Controles (Deshacer / Rehacer + Checkbox) --------
+        frame_controles = ttk.Frame(main_frame)
+        frame_controles.pack(fill=tk.X, pady=10)
+
+        self.btn_undo = ttk.Button(
+            frame_controles,
+            text="Deshacer",
+            command=self._undo
+        )
+        self.btn_undo.pack(side=tk.LEFT, padx=(0, 6))
+
+        self.btn_redo = ttk.Button(
+            frame_controles,
+            text="Rehacer",
+            command=self._redo
+        )
+        self.btn_redo.pack(side=tk.LEFT, padx=(0, 12))
 
         ttk.Checkbutton(
-            frame_checkbox,
+            frame_controles,
             text="Modificar sobre la marcha",
             variable=self.modificar_sobre_marcha
-        ).pack(anchor="w")
+        ).pack(side=tk.LEFT)
+
+        # Estado inicial
+        self._update_undo_redo_ui()
 
         # -------- Panel inferior (stats / histogramas / info extra) --------
         frame_info = ttk.LabelFrame(
@@ -291,6 +336,12 @@ class App:
             self.imagen_original_cv = img_cv
             self.imagen_actual_cv = img_cv.copy()
             self.imagen_resultado_cv = None
+            self.imagen_gris = None
+
+            # Reset historial
+            self._undo_stack.clear()
+            self._redo_stack.clear()
+            self._update_undo_redo_ui()
 
             self._mostrar_imagen_original(img_pil)
             self._limpiar_resultado()
@@ -341,20 +392,93 @@ class App:
             messagebox.showwarning("Aviso", "Primero carga una imagen")
             return
 
+        # Guardar estado actual para deshacer
+        self._push_undo()
+
         if self.modificar_sobre_marcha.get():
             fuente = self.imagen_actual_cv
         else:
             fuente = self.imagen_original_cv
 
-        resultado = funcion(fuente, *args)
+        try:
+            resultado = funcion(fuente, *args)
+        except Exception as e:
+            # Si falla, revertimos el push al historial
+            if self._undo_stack:
+                self._undo_stack.pop()
+            messagebox.showerror("Error", str(e))
+            return
+
+        # Al aplicar una nueva operación, se invalida el rehacer
+        self._redo_stack.clear()
 
         self.imagen_resultado_cv = resultado
 
         if self.modificar_sobre_marcha.get():
             self.imagen_actual_cv = resultado
 
-        self._mostrar_imagen_resultado(resultado)
+        # Cualquier cache dependiente de la imagen queda inválido
+        self.imagen_gris = None
 
+        self._mostrar_imagen_resultado(resultado)
+        self._update_undo_redo_ui()
+
+    # ==========================================================
+    # HISTORIAL - DESHACER / REHACER
+    # ==========================================================
+    def _snapshot_state(self):
+        return {
+            "imagen_actual_cv": None if self.imagen_actual_cv is None else self.imagen_actual_cv.copy(),
+            "imagen_resultado_cv": None if self.imagen_resultado_cv is None else self.imagen_resultado_cv.copy(),
+            "imagen_gris": None if self.imagen_gris is None else self.imagen_gris.copy()
+        }
+
+    def _restore_state(self, snap):
+        self.imagen_actual_cv = snap.get("imagen_actual_cv", None)
+        self.imagen_resultado_cv = snap.get("imagen_resultado_cv", None)
+        self.imagen_gris = snap.get("imagen_gris", None)
+
+        if self.imagen_resultado_cv is None:
+            self._limpiar_resultado()
+        else:
+            self._mostrar_imagen_resultado(self.imagen_resultado_cv)
+
+        self._update_undo_redo_ui()
+
+    def _push_undo(self):
+        snap = self._snapshot_state()
+        self._undo_stack.append(snap)
+        if len(self._undo_stack) > self._history_max:
+            self._undo_stack.pop(0)
+
+    def _undo(self):
+        if not self._undo_stack:
+            return
+
+        self._redo_stack.append(self._snapshot_state())
+        snap = self._undo_stack.pop()
+        self._restore_state(snap)
+
+    def _redo(self):
+        if not self._redo_stack:
+            return
+
+        self._undo_stack.append(self._snapshot_state())
+        snap = self._redo_stack.pop()
+        self._restore_state(snap)
+
+    def _update_undo_redo_ui(self):
+        if hasattr(self, "btn_undo"):
+            self.btn_undo.config(state=("normal" if self._undo_stack else "disabled"))
+        if hasattr(self, "btn_redo"):
+            self.btn_redo.config(state=("normal" if self._redo_stack else "disabled"))
+
+        if hasattr(self, "menu_edicion"):
+            try:
+                self.menu_edicion.entryconfig("Deshacer", state=("normal" if self._undo_stack else "disabled"))
+                self.menu_edicion.entryconfig("Rehacer", state=("normal" if self._redo_stack else "disabled"))
+            except tk.TclError:
+                pass
 
     def _cargar_menu_filtros(self):
         # -------- Filtros básicos --------
@@ -1008,8 +1132,23 @@ class App:
         )
 
     def _actualizar_resultado(self, resultado_cv):
+        # Este método se usa por varios callbacks (pseudocolor, lógicas, aritméticas, etc.)
+        # Mantiene el mismo comportamiento que aplicar_operacion respecto al historial.
+        if self.imagen_original_cv is None:
+            messagebox.showwarning("Aviso", "Primero carga una imagen")
+            return
+
+        self._push_undo()
+        self._redo_stack.clear()
+
         self.imagen_resultado_cv = resultado_cv
+        if self.modificar_sobre_marcha.get():
+            self.imagen_actual_cv = resultado_cv
+
+        self.imagen_gris = None
+
         self._mostrar_imagen_resultado(resultado_cv)
+        self._update_undo_redo_ui()
 
     def _cargar_menu_pseudocolor(self):
         """
