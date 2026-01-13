@@ -9,8 +9,12 @@ def _to_gray(img: np.ndarray) -> np.ndarray:
     """Convierte BGR a GRAY si es necesario; preserva si ya es GRAY."""
     if img is None:
         raise ValueError("Imagen None.")
-    if len(img.shape) == 3 and img.shape[2] == 3:
-        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    if len(img.shape) == 3:
+        ch = img.shape[2]
+        if ch == 3:
+            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if ch == 4:
+            return cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
     return img.copy()
 
 
@@ -322,14 +326,14 @@ def cierre_tradicional(img: np.ndarray, ksize: int = 3, shape: str = "rect", ite
 # MORFOLOGÍA BINARIA / ESCALA DE GRISES (COMPATIBILIDAD)
 # ==================================================
 def erosion(img_cv, k=5):
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = _to_gray(img_cv)
     kernel = np.ones((k, k), np.uint8)
     result = cv2.erode(gray, kernel, iterations=1)
     return cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
 
 
 def dilatacion(img_cv, k=5):
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = _to_gray(img_cv)
     kernel = np.ones((k, k), np.uint8)
     result = cv2.dilate(gray, kernel, iterations=1)
     return cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
@@ -337,7 +341,7 @@ def dilatacion(img_cv, k=5):
 
 def apertura(img_cv, k=5):
     """Apertura morfológica: erosión seguida de dilatación (versión optimizada)."""
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = _to_gray(img_cv)
     kernel = np.ones((k, k), np.uint8)
     morph = cv2.morphologyEx(gray, cv2.MORPH_OPEN, kernel)
     return cv2.cvtColor(morph, cv2.COLOR_GRAY2BGR)
@@ -345,7 +349,7 @@ def apertura(img_cv, k=5):
 
 def cierre(img_cv, k=5):
     """Cierre morfológico: dilatación seguida de erosión (versión optimizada)."""
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = _to_gray(img_cv)
     kernel = np.ones((k, k), np.uint8)
     morph = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
     return cv2.cvtColor(morph, cv2.COLOR_GRAY2BGR)

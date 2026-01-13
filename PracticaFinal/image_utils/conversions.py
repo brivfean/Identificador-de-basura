@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from PIL import Image
+from .utils import to_gray
 
 def convertir_pil_a_cv(im_pil):
     arr = np.array(im_pil)
@@ -29,7 +30,5 @@ def separar_rgb_cv(img_cv):
     ]
 
 def convertir_a_grises_cv(img_cv):
-    if img_cv.ndim == 3:
-        return cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-    return img_cv
+    return to_gray(img_cv)
 

@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 from math import log2
 from scipy.stats import skew
+from .utils import to_gray
 
 def compute_histogramas_rgb_arrays_from_cv(img_cv):
     if img_cv is None:
@@ -21,7 +22,7 @@ def compute_histograma_gris_array_from_cv(img_cv):
     if img_cv is None:
         return None
 
-    img_gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    img_gray = to_gray(img_cv)
     datos = img_gray.flatten()
     histograma, _ = np.histogram(datos, bins=256, range=(0, 256))
     return histograma

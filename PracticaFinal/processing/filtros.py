@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from ..image_utils.utils import to_gray
 
 # =========================
 # Filtros espaciales básicos
@@ -17,7 +18,7 @@ def filtro_gaussiano(img_cv, k):
     return cv2.GaussianBlur(img_cv, (k, k), 0)
 
 def filtro_laplaciano(img_cv, ksize):
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = to_gray(img_cv)
     lap = cv2.Laplacian(gray, cv2.CV_64F, ksize=ksize)
     lap_abs = cv2.convertScaleAbs(lap)
     return cv2.cvtColor(lap_abs, cv2.COLOR_GRAY2BGR)
@@ -27,7 +28,7 @@ def filtro_laplaciano(img_cv, ksize):
 # =========================
 
 def filtro_sobel(img_cv):
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = to_gray(img_cv)
 
     sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
     sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
@@ -41,7 +42,7 @@ def filtro_sobel(img_cv):
     )
 
 def filtro_prewitt(img_cv):
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = to_gray(img_cv)
 
     kernelx = np.array([[1, 0, -1],
                         [1, 0, -1],
@@ -63,7 +64,7 @@ def filtro_prewitt(img_cv):
     )
 
 def filtro_roberts(img_cv):
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = to_gray(img_cv)
 
     kernelx = np.array([[1, 0],
                         [0, -1]])
@@ -82,5 +83,5 @@ def filtro_roberts(img_cv):
     )
 
 def filtro_canny(img_cv, t1, t2):
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    gray = to_gray(img_cv)
     return cv2.Canny(gray, t1, t2)

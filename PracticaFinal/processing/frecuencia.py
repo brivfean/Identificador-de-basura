@@ -16,9 +16,15 @@ def _to_gray(img: np.ndarray) -> np.ndarray:
     import cv2
     if img is None:
         raise ValueError("Imagen None.")
-    if len(img.shape) == 3 and img.shape[2] == 3:
-        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    return img.copy()
+    arr = img
+    if len(arr.shape) == 3:
+        ch = arr.shape[2]
+        if ch == 3:
+            return cv2.cvtColor(arr, cv2.COLOR_BGR2GRAY)
+        if ch == 4:
+            return cv2.cvtColor(arr, cv2.COLOR_BGRA2GRAY)
+        return arr[:, :, 0].copy()
+    return arr.copy()
 
 
 def normalizar_float(img: np.ndarray) -> np.ndarray:

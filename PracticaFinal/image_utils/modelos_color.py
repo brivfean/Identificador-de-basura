@@ -10,6 +10,8 @@ class ModelosColor:
     def _asegurar_bgr(img_cv):
         if img_cv.ndim == 2:
             return cv2.cvtColor(img_cv, cv2.COLOR_GRAY2BGR)
+        if img_cv.ndim == 3 and img_cv.shape[2] == 4:
+            return cv2.cvtColor(img_cv, cv2.COLOR_BGRA2BGR)
         return img_cv
 
     # ==================================================
@@ -17,9 +19,8 @@ class ModelosColor:
     # ==================================================
     @staticmethod
     def a_grises(img_cv):
-        if img_cv.ndim == 3:
-            return cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-        return img_cv
+        from .utils import to_gray
+        return to_gray(img_cv)
 
     # ==================================================
     # RGB (canales)

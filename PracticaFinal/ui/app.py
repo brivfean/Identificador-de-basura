@@ -57,6 +57,8 @@ from ..image_utils import (
     calcular_stats_cc
 )
 
+from ..image_utils.utils import to_gray
+
 from ..processing import (
     suma,
     resta,
@@ -1229,9 +1231,7 @@ class App:
 
         # Obtener gris si no existe
         if self.imagen_gris is None:
-            self.imagen_gris = cv2.cvtColor(
-                self.imagen_original_cv, cv2.COLOR_BGR2GRAY
-            )
+            self.imagen_gris = to_gray(self.imagen_original_cv)
 
         pc = Pseudocolor(self.imagen_gris)
 
@@ -1268,9 +1268,7 @@ class App:
             return
 
         if self.imagen_gris is None:
-            self.imagen_gris = cv2.cvtColor(
-                self.imagen_original_cv, cv2.COLOR_BGR2GRAY
-            )
+            self.imagen_gris = to_gray(self.imagen_original_cv)
 
         # Ejemplo: pedir 3 colores base
         colores = [

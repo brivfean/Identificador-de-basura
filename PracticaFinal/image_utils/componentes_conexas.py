@@ -5,7 +5,25 @@ import matplotlib.pyplot as plt
 
 
 def preparar_binaria(img_cv, umbral=None):
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    if img_cv is None:
+        raise ValueError("Imagen None.")
+
+    img = np.asarray(img_cv)
+
+    # Convertir a gris solo si es necesario; soportar BGR y BGRA
+    if img.ndim == 3:
+        ch = img.shape[2]
+        if ch == 3:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        elif ch == 4:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+        else:
+            # Si tiene un número inesperado de canales, tomar el primer canal
+            gray = img[:, :, 0].copy()
+    elif img.ndim == 2:
+        gray = img.copy()
+    else:
+        raise ValueError("Imagen con dimensiones no soportadas.")
 
     if umbral is None:
         _, bin_img = cv2.threshold(
@@ -14,7 +32,7 @@ def preparar_binaria(img_cv, umbral=None):
         )
     else:
         _, bin_img = cv2.threshold(
-            gray, umbral, 255, cv2.THRESH_BINARY
+            gray, int(umbral), 255, cv2.THRESH_BINARY
         )
 
     return bin_img

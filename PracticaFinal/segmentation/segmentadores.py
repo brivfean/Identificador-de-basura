@@ -25,9 +25,9 @@ class Segmentador:
         if img is None:
             raise ValueError("Imagen inválida")
 
-        # Color → gris
-        if img.ndim == 3:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Color → gris (seguro)
+        from ..image_utils.utils import to_gray
+        img = to_gray(img)
 
         # Asegurar binaria real
         valores = np.unique(img)
