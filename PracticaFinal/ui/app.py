@@ -1509,12 +1509,14 @@ class App:
         def tarea():
             try:
                 clf = CNNClassifier()
-                clf.train(dataset_dir, epochs=10)
-                clf.save("ml_model")
+                # Pasar save_path="ml_model" para guardar solo ahí y generar reporte
+                clf.train(dataset_dir, epochs=10, save_path="ml_model")
 
                 messagebox.showinfo(
                     "ML",
-                    "Entrenamiento finalizado y modelo guardado."
+                    "Entrenamiento finalizado.\n\n"
+                    "Modelo guardado en: ml_model/\n"
+                    "Reporte generado en: ml_model/training_report.txt"
                 )
             except Exception as e:
                 messagebox.showerror("Error", str(e))
@@ -1522,6 +1524,24 @@ class App:
         threading.Thread(target=tarea, daemon=True).start()
 
     def _ml_probar(self):
+        # Seleccionar modelo .h5 disponible en ml_model
+        clf_probe = CNNClassifier()
+        model_dir = clf_probe.default_model_dir
+        os.makedirs(model_dir, exist_ok=True)
+
+        modelos_disponibles = [f for f in os.listdir(model_dir) if f.lower().endswith(".h5")]
+        if not modelos_disponibles:
+            messagebox.showerror("Modelos", "No se encontraron modelos .h5 en ml_model")
+            return
+
+        model_file = filedialog.askopenfilename(
+            title="Selecciona un modelo (.h5)",
+            initialdir=model_dir,
+            filetypes=[("Modelos Keras", "*.h5")]
+        )
+        if not model_file:
+            return
+
         image_paths = filedialog.askopenfilenames(
             title="Selecciona imágenes",
             filetypes=[("Imágenes", "*.jpg *.png *.jpeg")]
@@ -1529,14 +1549,35 @@ class App:
         if not image_paths:
             return
 
+        # Mostrar vista previa de las imágenes seleccionadas
+        self._mostrar_preview_imagenes(image_paths)
+
         def tarea():
             try:
+                import time
+                
                 clf = CNNClassifier()
-                clf.load_default()
+                clf.load(os.path.dirname(model_file))
+                
+                # Nombre del modelo seleccionado
+                model_name = os.path.basename(model_file)
+                
+                # Medir tiempo de clasificación
+                inicio = time.time()
                 results = clf.predict(image_paths)
+                tiempo_total = time.time() - inicio
+                tiempo_promedio = tiempo_total / len(image_paths)
 
-                texto = "Resultados:\n\n"
-                for r in results:
+                # Construir texto con formato mejorado
+                texto = "═" * 60 + "\n"
+                texto += "RESULTADOS DE CLASIFICACIÓN\n"
+                texto += "═" * 60 + "\n\n"
+                texto += f"Modelo usado: {model_name}\n"
+                texto += f"Imágenes procesadas: {len(image_paths)}\n"
+                texto += f"Tiempo promedio: {tiempo_promedio:.3f} segundos/imagen\n"
+                texto += "═" * 60 + "\n\n"
+
+                for idx, r in enumerate(results, 1):
                     path = r["image"]
                     clase = r["predicted_class"]
                     confianza = r["confidence"]
@@ -1544,14 +1585,17 @@ class App:
 
                     nombre = os.path.basename(path)
 
-                    texto += f"{nombre} → {clase} ({confianza:.2f}%)\n"
-                    texto += "   Siguientes similitudes:\n"
+                    texto += f"[{idx}] IMAGEN: {nombre}\n"
+                    texto += f"Ruta: {path}\n"
+                    texto += "─" * 60 + "\n"
+                    texto += f"✓ CLASIFICACIÓN: {clase} ({confianza:.2f}%)\n\n"
+                    texto += "TOP 5 COINCIDENCIAS:\n"
+                    
+                    for i, p in enumerate(top[:5], 1):
+                        barra = "█" * int(p['confidence'] / 5)  # Barra visual
+                        texto += f"  {i}. {p['class']:<15} {p['confidence']:>6.2f}% {barra}\n"
 
-                    for p in top[1:]:
-                        texto += f"      - {p['class']}: {p['confidence']:.2f}%\n"
-
-                    texto += "\n"
-
+                    texto += "\n" + "═" * 60 + "\n\n"
 
                 messagebox.showinfo("Predicción ML", texto)
 
@@ -1559,6 +1603,47 @@ class App:
                 messagebox.showerror("Error", str(e))
 
         threading.Thread(target=tarea, daemon=True).start()
+
+    def _mostrar_preview_imagenes(self, image_paths):
+        """Despliega una ventana con miniaturas de las imágenes seleccionadas."""
+        win = tk.Toplevel(self.root)
+        win.title("Imágenes seleccionadas")
+
+        contenedor = tk.Frame(win)
+        contenedor.pack(fill="both", expand=True)
+
+        canvas = tk.Canvas(contenedor, width=520, height=420)
+        scrollbar = ttk.Scrollbar(contenedor, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        inner = tk.Frame(canvas)
+        inner.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Guardar referencias para evitar que las imágenes se recolecten
+        if not hasattr(self, "_preview_thumbs"):
+            self._preview_thumbs = []
+        self._preview_thumbs.clear()
+
+        for path in image_paths:
+            try:
+                img = Image.open(path)
+                img.thumbnail((160, 160))
+                photo = ImageTk.PhotoImage(img)
+                self._preview_thumbs.append(photo)
+
+                marco = tk.Frame(inner, pady=6, padx=8)
+                tk.Label(marco, image=photo, compound="top", text=os.path.basename(path)).pack()
+                tk.Label(marco, text=path, wraplength=480, justify="left", fg="#444").pack(anchor="w")
+                marco.pack(anchor="w")
+            except Exception as exc:
+                tk.Label(inner, text=f"No se pudo cargar {path}: {exc}", fg="red").pack(anchor="w")
 
     def _generar_preprocesamiento(self):
         nombre = simpledialog.askstring(

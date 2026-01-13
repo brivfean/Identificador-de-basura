@@ -20,8 +20,7 @@ class CNNClassifier:
             os.path.join(
                 os.path.dirname(__file__),
                 "..",
-                "models",
-                "cnn_garbage"
+                "ml_model"
             )
         )
 
@@ -60,7 +59,21 @@ class CNNClassifier:
     # ==================================================
     # ENTRENAMIENTO
     # ==================================================
-    def train(self, dataset_dir, batch_size=32, epochs=10, callback=None):
+    def train(self, dataset_dir, batch_size=32, epochs=10, callback=None, save_path=None):
+        """
+        Entrena el modelo con las imágenes de dataset_dir.
+        Se espera que haya subdirectorios (uno por clase).
+        
+        Args:
+            dataset_dir: Ruta al directorio con subdirectorios por clase
+            batch_size: Tamaño del batch
+            epochs: Número máximo de épocas
+            callback: Callback adicional (opcional)
+            save_path: Ruta donde guardar el modelo (si es None, no guarda automáticamente)
+        
+        Returns:
+            history: Objeto con el historial de entrenamiento
+        """
         datagen = ImageDataGenerator(
             rescale=1.0 / 255.0,
             validation_split=0.2
@@ -88,20 +101,110 @@ class CNNClassifier:
         # Construir modelo
         self.build_model()
 
+        # Early stopping para evitar sobreentrenamiento
+        early_stop = tf.keras.callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=5,
+            restore_best_weights=True,
+            verbose=1
+        )
+
+        callbacks_list = [early_stop]
+        if callback:
+            callbacks_list.append(callback)
+
         history = self.model.fit(
             train_gen,
             validation_data=val_gen,
             epochs=epochs,
-            callbacks=[callback] if callback else None
+            callbacks=callbacks_list
         )
 
-        self.save(self.default_model_dir)
+        # Guardar solo si se especifica una ruta
+        if save_path:
+            self.save(save_path)
+            self.save_training_report(save_path, history, dataset_dir, train_gen, val_gen)
 
         return history
 
     # ==================================================
     # GUARDADO / CARGA
     # ==================================================
+    
+    def save_training_report(self, path, history, dataset_dir, train_gen, val_gen):
+        """
+        Guarda un reporte del entrenamiento con métricas importantes.
+        
+        Args:
+            path: Ruta donde guardar el reporte (misma carpeta del modelo)
+            history: Objeto history devuelto por model.fit()
+            dataset_dir: Ruta del dataset usado
+            train_gen: Generador de entrenamiento
+            val_gen: Generador de validación
+        """
+        import datetime
+        
+        os.makedirs(path, exist_ok=True)
+        report_path = os.path.join(path, "training_report.txt")
+        
+        # Obtener métricas finales
+        final_epoch = len(history.history['loss'])
+        final_loss = history.history['loss'][-1]
+        final_acc = history.history['accuracy'][-1] * 100
+        final_val_loss = history.history['val_loss'][-1]
+        final_val_acc = history.history['val_accuracy'][-1] * 100
+        
+        # Mejor epoch (mayor val_accuracy)
+        best_epoch = np.argmax(history.history['val_accuracy']) + 1
+        best_val_acc = max(history.history['val_accuracy']) * 100
+        
+        with open(report_path, 'w', encoding='utf-8') as f:
+            f.write("=" * 60 + "\n")
+            f.write("REPORTE DE ENTRENAMIENTO - CNN GARBAGE CLASSIFIER\n")
+            f.write("=" * 60 + "\n\n")
+            
+            f.write(f"Fecha y hora: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Dataset: {os.path.basename(dataset_dir)}\n")
+            f.write(f"Ruta completa: {dataset_dir}\n\n")
+            
+            f.write("-" * 60 + "\n")
+            f.write("INFORMACIÓN DEL DATASET\n")
+            f.write("-" * 60 + "\n")
+            f.write(f"Número de clases: {len(self.class_indices)}\n")
+            f.write(f"Clases: {', '.join(self.class_indices.values())}\n")
+            f.write(f"Imágenes de entrenamiento: {train_gen.samples}\n")
+            f.write(f"Imágenes de validación: {val_gen.samples}\n")
+            f.write(f"Tamaño de entrada: {self.input_size}\n\n")
+            
+            f.write("-" * 60 + "\n")
+            f.write("RESULTADOS DEL ENTRENAMIENTO\n")
+            f.write("-" * 60 + "\n")
+            f.write(f"Épocas completadas: {final_epoch}\n")
+            f.write(f"Mejor época: {best_epoch}\n")
+            f.write(f"Mejor precisión de validación: {best_val_acc:.2f}%\n\n")
+            
+            f.write(f"MÉTRICAS FINALES (Época {final_epoch}):\n")
+            f.write(f"  - Loss (entrenamiento): {final_loss:.4f}\n")
+            f.write(f"  - Accuracy (entrenamiento): {final_acc:.2f}%\n")
+            f.write(f"  - Loss (validación): {final_val_loss:.4f}\n")
+            f.write(f"  - Accuracy (validación): {final_val_acc:.2f}%\n\n")
+            
+            f.write("-" * 60 + "\n")
+            f.write("HISTORIAL POR ÉPOCA\n")
+            f.write("-" * 60 + "\n")
+            f.write(f"{'Época':<8} {'Train Loss':<12} {'Train Acc':<12} {'Val Loss':<12} {'Val Acc':<12}\n")
+            f.write("-" * 60 + "\n")
+            
+            for i in range(final_epoch):
+                f.write(f"{i+1:<8} {history.history['loss'][i]:<12.4f} "
+                       f"{history.history['accuracy'][i]*100:<12.2f} "
+                       f"{history.history['val_loss'][i]:<12.4f} "
+                       f"{history.history['val_accuracy'][i]*100:<12.2f}\n")
+            
+            f.write("\n" + "=" * 60 + "\n")
+            f.write("Early Stopping activado con patience=5 en val_loss\n")
+            f.write("=" * 60 + "\n")
+    
     def save(self, path):
         if self.model is None:
             raise RuntimeError("No hay modelo para guardar.")

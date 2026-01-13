@@ -1,0 +1,46 @@
+============================================================
+REPORTE DE ENTRENAMIENTO - CNN GARBAGE CLASSIFIER
+============================================================
+
+Fecha y hora: 2024-01-15 14:30:45
+Dataset: garbage_dataset
+Ruta completa: C:/Users/user/datasets/garbage_dataset
+
+------------------------------------------------------------
+INFORMACIÓN DEL DATASET
+------------------------------------------------------------
+Número de clases: 6
+Clases: cardboard, glass, metal, paper, plastic, trash
+Imágenes de entrenamiento: 2400
+Imágenes de validación: 600
+Tamaño de entrada: (224, 224)
+
+------------------------------------------------------------
+RESULTADOS DEL ENTRENAMIENTO
+------------------------------------------------------------
+Épocas completadas: 7
+Mejor época: 6
+Mejor precisión de validación: 92.15%
+
+MÉTRICAS FINALES (Época 7):
+  - Loss (entrenamiento): 0.2145
+  - Accuracy (entrenamiento): 93.50%
+  - Loss (validación): 0.2789
+  - Accuracy (validación): 91.83%
+
+------------------------------------------------------------
+HISTORIAL POR ÉPOCA
+------------------------------------------------------------
+Época    Train Loss   Train Acc    Val Loss     Val Acc     
+------------------------------------------------------------
+1        1.2345       45.00        1.3456       42.50       
+2        0.8901       62.30        0.9234       60.15       
+3        0.5678       78.90        0.6234       75.80       
+4        0.3456       87.20        0.4123       85.50       
+5        0.2789       90.50        0.3456       88.75       
+6        0.2234       92.30        0.2945       92.15       
+7        0.2145       93.50        0.2789       91.83       
+
+============================================================
+Early Stopping activado con patience=5 en val_loss
+============================================================
