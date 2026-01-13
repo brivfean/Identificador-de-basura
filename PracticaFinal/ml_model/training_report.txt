@@ -1,0 +1,46 @@
+============================================================
+REPORTE DE ENTRENAMIENTO - CNN GARBAGE CLASSIFIER
+============================================================
+
+Fecha y hora: 2026-01-13 08:37:19
+Dataset: garbage-dataset
+Ruta completa: C:/Users/godie/Desktop/Proyecto_VC/src/garbage-dataset
+
+------------------------------------------------------------
+INFORMACIÓN DEL DATASET
+------------------------------------------------------------
+Número de clases: 10
+Clases: battery, biological, cardboard, clothes, glass, metal, paper, plastic, shoes, trash
+Imágenes de entrenamiento: 15813
+Imágenes de validación: 3949
+Tamaño de entrada: (224, 224)
+
+------------------------------------------------------------
+RESULTADOS DEL ENTRENAMIENTO
+------------------------------------------------------------
+Épocas completadas: 7
+Mejor época: 7
+Mejor precisión de validación: 92.83%
+
+MÉTRICAS FINALES (Época 7):
+  - Loss (entrenamiento): 0.0217
+  - Accuracy (entrenamiento): 99.47%
+  - Loss (validación): 0.2749
+  - Accuracy (validación): 92.83%
+
+------------------------------------------------------------
+HISTORIAL POR ÉPOCA
+------------------------------------------------------------
+Época    Train Loss   Train Acc    Val Loss     Val Acc     
+------------------------------------------------------------
+1        0.3935       87.46        0.2868       90.86       
+2        0.1883       93.76        0.2482       92.28       
+3        0.1279       95.83        0.2705       91.44       
+4        0.0819       97.33        0.2710       92.23       
+5        0.0553       98.19        0.2642       92.10       
+6        0.0316       99.18        0.2898       92.25       
+7        0.0217       99.47        0.2749       92.83       
+
+============================================================
+Early Stopping activado con patience=5 en val_loss
+============================================================

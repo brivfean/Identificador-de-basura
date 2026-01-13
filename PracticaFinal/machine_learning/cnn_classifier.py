@@ -171,7 +171,7 @@ class CNNClassifier:
             f.write("INFORMACIÓN DEL DATASET\n")
             f.write("-" * 60 + "\n")
             f.write(f"Número de clases: {len(self.class_indices)}\n")
-            f.write(f"Clases: {', '.join(self.class_indices.values())}\n")
+            f.write(f"Clases: {', '.join(self.class_indices.keys())}\n")
             f.write(f"Imágenes de entrenamiento: {train_gen.samples}\n")
             f.write(f"Imágenes de validación: {val_gen.samples}\n")
             f.write(f"Tamaño de entrada: {self.input_size}\n\n")
@@ -226,7 +226,18 @@ class CNNClassifier:
             json.dump(meta, f, indent=4)
 
     def load(self, path):
-        model_path = os.path.join(path, "model.h5")
+        """
+        Carga un modelo desde una ruta.
+        Si path es un archivo .h5, lo carga directamente.
+        Si path es una carpeta, busca model.h5 dentro.
+        """
+        # Detectar si es un archivo .h5 o una carpeta
+        if path.lower().endswith(".h5"):
+            model_path = path
+            model_dir = os.path.dirname(path)
+        else:
+            model_dir = path
+            model_path = os.path.join(path, "model.h5")
 
         # Intento de carga estándar (compatible con TF/Keras actuales)
         try:
@@ -246,10 +257,10 @@ class CNNClassifier:
                 custom_objects={"DepthwiseConv2D": DepthwiseConv2DCompat}
             )
 
-        with open(os.path.join(path, "classes.json"), "r") as f:
+        with open(os.path.join(model_dir, "classes.json"), "r") as f:
             self.class_indices = json.load(f)
 
-        with open(os.path.join(path, "meta.json"), "r") as f:
+        with open(os.path.join(model_dir, "meta.json"), "r") as f:
             meta = json.load(f)
             self.input_size = tuple(meta["input_size"])
 

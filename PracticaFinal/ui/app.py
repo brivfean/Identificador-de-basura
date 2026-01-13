@@ -1557,7 +1557,8 @@ class App:
                 import time
                 
                 clf = CNNClassifier()
-                clf.load(os.path.dirname(model_file))
+                # Pasar el archivo .h5 directamente (no solo la carpeta)
+                clf.load(model_file)
                 
                 # Nombre del modelo seleccionado
                 model_name = os.path.basename(model_file)
