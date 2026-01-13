@@ -10,7 +10,7 @@ from tkinter import simpledialog
 import numpy as np
 from scipy import ndimage
 
-from processing.filtros import (
+from ..processing.filtros import (
     filtro_media,
     filtro_mediana,
     filtro_gaussiano,
@@ -21,14 +21,14 @@ from processing.filtros import (
     filtro_canny
 )
 
-from processing.ruido import (
+from ..processing.ruido import (
     ruido_sal_pimienta,
     ruido_sal,
     ruido_pimienta,
     ruido_gaussiano
 )
 
-from processing.morfologia import (
+from ..processing.morfologia import (
     erosion,
     dilatacion,
     apertura,
@@ -43,21 +43,21 @@ from processing.morfologia import (
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-from image_utils.histogramas import (
+from ..image_utils.histogramas import (
     compute_histogramas_rgb_arrays_from_cv,
     compute_histograma_gris_array_from_cv
 )
 
-from image_utils.histogramas import calcular_stats_rgb_from_cv
+from ..image_utils.histogramas import calcular_stats_rgb_from_cv
 
-from image_utils import (
+from ..image_utils import (
     preparar_binaria,
     etiquetar_componentes,
     etiquetas_a_rgb,
     calcular_stats_cc
 )
 
-from processing import (
+from ..processing import (
     suma,
     resta,
     multiplicacion,
@@ -68,24 +68,24 @@ from processing import (
     op_not
 )
 
-from image_utils.modelos_color import ModelosColor
+from ..image_utils.modelos_color import ModelosColor
 
-from image_utils.pseudocolor import Pseudocolor
+from ..image_utils.pseudocolor import Pseudocolor
 
-from image_utils.conversions import (
+from ..image_utils.conversions import (
     convertir_pil_a_cv,
     convertir_cv_a_pil
 )
 
-from machine_learning import CNNClassifier
+from ..machine_learning import CNNClassifier
 import threading
 from tkinter import filedialog, messagebox
 
-from segmentation import Segmentador
+from ..segmentation import Segmentador
 
-from preprocessing import PreprocessingPipeline, PREPROCESSING_FUNCTIONS
+from ..preprocessing import PreprocessingPipeline, PREPROCESSING_FUNCTIONS
 
-from normalization.normalizador import Normalizador
+from ..normalization.normalizador import Normalizador
 
 class App:
     def __init__(self, root):

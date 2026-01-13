@@ -123,7 +123,25 @@ class CNNClassifier:
             json.dump(meta, f, indent=4)
 
     def load(self, path):
-        self.model = load_model(os.path.join(path, "model.h5"))
+        model_path = os.path.join(path, "model.h5")
+
+        # Intento de carga estándar (compatible con TF/Keras actuales)
+        try:
+            self.model = load_model(model_path, compile=False)
+        except Exception:
+            # Compatibilidad: algunos modelos guardados con versiones más nuevas
+            # incluyen el parámetro 'groups' en DepthwiseConv2D, que no existe
+            # en versiones anteriores de tf.keras. Creamos un wrapper que lo ignora.
+            class DepthwiseConv2DCompat(tf.keras.layers.DepthwiseConv2D):
+                def __init__(self, *args, **kwargs):
+                    kwargs.pop("groups", None)
+                    super().__init__(*args, **kwargs)
+
+            self.model = load_model(
+                model_path,
+                compile=False,
+                custom_objects={"DepthwiseConv2D": DepthwiseConv2DCompat}
+            )
 
         with open(os.path.join(path, "classes.json"), "r") as f:
             self.class_indices = json.load(f)

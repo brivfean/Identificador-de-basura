@@ -1,23 +1,23 @@
 # ===============================
 # image_utils
 # ===============================
-from image_utils.conversions import convertir_a_grises_cv
-from image_utils.modelos_color import ModelosColor
-from image_utils.pseudocolor import Pseudocolor
+from ..image_utils.conversions import convertir_a_grises_cv
+from ..image_utils.modelos_color import ModelosColor
+from ..image_utils.pseudocolor import Pseudocolor
 
 # ===============================
 # processing
 # ===============================
-from processing.filtros import *
-from processing.morfologia import *
-from processing.ruido import *
-from processing.aritmeticas import *
-from processing.logicas import *
+from ..processing.filtros import *
+from ..processing.morfologia import *
+from ..processing.ruido import *
+from ..processing.aritmeticas import *
+from ..processing.logicas import *
 
 # ===============================
 # Normalizacion
 # ===============================
-from normalization.normalizador import Normalizador
+from ..normalization.normalizador import Normalizador
 
 # ==================================================
 # REGISTRO DE FUNCIONES DE PREPROCESAMIENTO

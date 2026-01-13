@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from image_utils import convertir_a_grises_cv
+from ..image_utils import convertir_a_grises_cv
 
 def grises(img):
     return convertir_a_grises_cv(img)

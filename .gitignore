@@ -1,0 +1,68 @@
+# Entorno virtual
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
+.settings/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+*.swp
+*~
+
+# Archivos de sistema
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Modelos y datos grandes (opcional, si los quieres en .gitignore)
+# *.h5
+# *.pkl
+# *.pth
+# data/
+# datasets/
+
+# Archivos temporales
+tmp/
+temp/
+*.tmp
