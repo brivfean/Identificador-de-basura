@@ -70,11 +70,18 @@ from ..processing import (
 
 from ..image_utils.modelos_color import ModelosColor
 
-from ..image_utils.pseudocolor import Pseudocolor
+from ..image_utils.pseudocolor import (
+    Pseudocolor, get_menu_items, regenerate_random,
+    GRAYSCALE_OPTION, AVAILABLE_COLORMAPS, CUSTOM_CMAPS
+)
 
 from ..image_utils.conversions import (
     convertir_pil_a_cv,
     convertir_cv_a_pil
+)
+
+from ..processing.frecuencia import (
+    aplicar_filtro_fft, dct_compresion, fft2_imagen
 )
 
 from ..machine_learning import CNNClassifier
@@ -106,7 +113,11 @@ class App:
 
         self.modificar_sobre_marcha = tk.BooleanVar(value=False)
 
-
+        # =========================
+        # Pila de transformaciones (para visualizar secuencia)
+        # =========================
+        self._transformacion_stack = []  # Lista de (nombre, imagen) guardadas paso a paso
+        self._transformacion_nombres = []  # Nombres de transformaciones
 
         # =========================
         # Historial (Deshacer / Rehacer)
@@ -193,6 +204,10 @@ class App:
         # -------- Pseudocolor --------
         self.menu_pseudocolor = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Pseudocolor", menu=self.menu_pseudocolor)
+
+        # -------- Frecuencia (Filtros FFT) --------
+        self.menu_frecuencia = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Frecuencia", menu=self.menu_frecuencia)
         
         # -------- Preprocesamiento --------
         self.menu_preprocesamiento = tk.Menu(menubar, tearoff=0)
@@ -234,6 +249,7 @@ class App:
         self._cargar_menu_analisis()
         self._cargar_menu_pseudocolor()
         self._cargar_menu_modelos_color()
+        self._cargar_menu_frecuencia()
         self._cargar_menu_segmentacion()
         self._cargar_menu_normalizacion()
         self._cargar_menu_ml()
@@ -281,10 +297,18 @@ class App:
         )
         self.btn_redo.pack(side=tk.LEFT, padx=(0, 12))
 
+        self.btn_secuencia = ttk.Button(
+            frame_controles,
+            text="🎬 Visualizar Secuencia",
+            command=self._visualizar_secuencia
+        )
+        self.btn_secuencia.pack(side=tk.LEFT, padx=(0, 12))
+
         ttk.Checkbutton(
             frame_controles,
             text="Modificar sobre la marcha",
-            variable=self.modificar_sobre_marcha
+            variable=self.modificar_sobre_marcha,
+            command=self._reset_transformacion_stack
         ).pack(side=tk.LEFT)
 
         # Estado inicial
@@ -387,7 +411,7 @@ class App:
     # ==========================================================
     # OPERACIONES (PATRÓN CENTRAL)
     # ==========================================================
-    def aplicar_operacion(self, funcion, *args):
+    def aplicar_operacion(self, funcion, *args, nombre_transformacion="Transformación"):
         if self.imagen_original_cv is None:
             messagebox.showwarning("Aviso", "Primero carga una imagen")
             return
@@ -416,6 +440,9 @@ class App:
 
         if self.modificar_sobre_marcha.get():
             self.imagen_actual_cv = resultado
+            # Guardar en pila de transformaciones
+            self._transformacion_stack.append(resultado.copy())
+            self._transformacion_nombres.append(nombre_transformacion)
 
         # Cualquier cache dependiente de la imagen queda inválido
         self.imagen_gris = None
@@ -769,11 +796,7 @@ class App:
         )
 
         if k:
-            def wrapper(img):
-                _, morph = apertura(img, k)
-                return morph
-
-            self.aplicar_operacion(wrapper)
+            self.aplicar_operacion(apertura, k)
 
 
     def _morfologia_cierre(self):
@@ -784,11 +807,7 @@ class App:
         )
 
         if k:
-            def wrapper(img):
-                _, morph = cierre(img, k)
-                return morph
-
-            self.aplicar_operacion(wrapper)
+            self.aplicar_operacion(cierre, k)
 
     def _morfologia_erosion_color(self):
         k = simpledialog.askinteger(
@@ -1131,9 +1150,10 @@ class App:
             command=self._operacion_not
         )
 
-    def _actualizar_resultado(self, resultado_cv):
-        # Este método se usa por varios callbacks (pseudocolor, lógicas, aritméticas, etc.)
-        # Mantiene el mismo comportamiento que aplicar_operacion respecto al historial.
+    def _actualizar_resultado(self, resultado_cv, nombre_transformacion="Transformación"):
+        """
+        Actualiza resultado y registra en pila de transformaciones si "Modificar sobre la marcha" está activo.
+        """
         if self.imagen_original_cv is None:
             messagebox.showwarning("Aviso", "Primero carga una imagen")
             return
@@ -1144,6 +1164,9 @@ class App:
         self.imagen_resultado_cv = resultado_cv
         if self.modificar_sobre_marcha.get():
             self.imagen_actual_cv = resultado_cv
+            # Guardar en pila de transformaciones
+            self._transformacion_stack.append(resultado_cv.copy())
+            self._transformacion_nombres.append(nombre_transformacion)
 
         self.imagen_gris = None
 
@@ -1152,60 +1175,94 @@ class App:
 
     def _cargar_menu_pseudocolor(self):
         """
-        Carga el menú de pseudocolores (OpenCV y personalizado).
+        Carga el menú de pseudocolores: Escala de grises + OpenCV + Custom + Random regenerable.
         """
 
         # Limpiar por si se recarga
         self.menu_pseudocolor.delete(0, tk.END)
 
-        # -----------------------------
-        # Pseudocolores OpenCV
-        # -----------------------------
-        pseudocolores_opencv = [
-            "JET",
-            "HOT",
-            "OCEAN",
-            "BONE",
-            "RAINBOW"
-        ]
+        # Obtener lista completa de opciones
+        menu_items = get_menu_items()
 
-        for nombre in pseudocolores_opencv:
-            self.menu_pseudocolor.add_command(
-                label=f"OpenCV - {nombre}",
-                command=lambda n=nombre: self._pseudocolor_opencv(n)
-            )
+        for item in menu_items:
+            if item == GRAYSCALE_OPTION:
+                # Escala de grises
+                self.menu_pseudocolor.add_command(
+                    label=item,
+                    command=lambda n=item: self._pseudocolor_aplicar(n)
+                )
+                self.menu_pseudocolor.add_separator()
+            elif item in AVAILABLE_COLORMAPS:
+                # Colormaps OpenCV
+                self.menu_pseudocolor.add_command(
+                    label=f"OpenCV - {item}",
+                    command=lambda n=item: self._pseudocolor_aplicar(n)
+                )
+            elif item == "Random (custom)":
+                # Random regenerable
+                self.menu_pseudocolor.add_command(
+                    label=f"🎲 {item}",
+                    command=lambda n=item: self._pseudocolor_aplicar(n)
+                )
+                self.menu_pseudocolor.add_command(
+                    label="  → Regenerar Random",
+                    command=self._pseudocolor_regenerate_random
+                )
+            elif item in CUSTOM_CMAPS:
+                # Otros custom (como Pastel)
+                self.menu_pseudocolor.add_command(
+                    label=f"Custom - {item}",
+                    command=lambda n=item: self._pseudocolor_aplicar(n)
+                )
 
         self.menu_pseudocolor.add_separator()
-
-        # -----------------------------
-        # Pseudocolor personalizado
-        # -----------------------------
         self.menu_pseudocolor.add_command(
-            label="Personalizado...",
+            label="Personalizado dinámico...",
             command=self._pseudocolor_personalizado
         )
 
-    def _pseudocolor_opencv(self, nombre):
+    def _pseudocolor_aplicar(self, opcion: str):
+        """Aplica pseudocolor según la opción seleccionada."""
         if self.imagen_original_cv is None:
             messagebox.showwarning("Aviso", "Primero carga una imagen.")
             return
 
+        # Obtener gris si no existe
         if self.imagen_gris is None:
             self.imagen_gris = cv2.cvtColor(
                 self.imagen_original_cv, cv2.COLOR_BGR2GRAY
             )
 
         pc = Pseudocolor(self.imagen_gris)
-        resultado = pc.aplicar_opencv(nombre)
 
-        self._actualizar_resultado(resultado)
+        if opcion == GRAYSCALE_OPTION:
+            # Sin pseudocolor, solo gris
+            self._actualizar_resultado(self.imagen_gris)
+            self.text_info.delete("1.0", tk.END)
+            self.text_info.insert(tk.END, "Escala de grises (sin pseudocolor).\n")
+        elif opcion in AVAILABLE_COLORMAPS:
+            # Colormap OpenCV
+            resultado = pc.aplicar_opencv(opcion)
+            resultado_rgb = cv2.cvtColor(resultado, cv2.COLOR_BGR2RGB)
+            self._actualizar_resultado(resultado_rgb)
+            self.text_info.delete("1.0", tk.END)
+            self.text_info.insert(tk.END, f"Pseudocolor OpenCV: {opcion}\n")
+        elif opcion in CUSTOM_CMAPS:
+            # Colormap custom (Pastel, Random, etc.)
+            resultado = pc.aplicar_custom(opcion)
+            self._actualizar_resultado(resultado)
+            self.text_info.delete("1.0", tk.END)
+            self.text_info.insert(tk.END, f"Pseudocolor Custom: {opcion}\n")
+        else:
+            messagebox.showerror("Error", f"Opción no reconocida: {opcion}")
 
-        self.text_info.delete("1.0", tk.END)
-        self.text_info.insert(
-            tk.END, f"Pseudocolor OpenCV {nombre} aplicado.\n"
-        )
+    def _pseudocolor_regenerate_random(self):
+        """Regenera un nuevo colormap aleatorio."""
+        regenerate_random()
+        messagebox.showinfo("Éxito", "Colormap Random regenerado.\nVuelve a aplicarlo desde el menú.")
 
     def _pseudocolor_personalizado(self):
+        """Aplica un pseudocolor personalizado dinámico."""
         if self.imagen_original_cv is None:
             messagebox.showwarning("Aviso", "Primero carga una imagen.")
             return
@@ -1701,8 +1758,273 @@ class App:
             tk.END, f"Imagen guardada como {ruta_final}\n"
         )
 
+    # ==========================================================
+    # FRECUENCIA - FILTROS FFT (PASA BAJAS / PASA ALTAS)
+    # ==========================================================
+    def _cargar_menu_frecuencia(self):
+        """Carga el menú de filtros en frecuencia (FFT)."""
+        self.menu_frecuencia.delete(0, tk.END)
 
+        # Pasa bajas
+        self.menu_frecuencia.add_command(
+            label="Pasa Bajas - Ideal",
+            command=lambda: self._aplicar_fft_lowpass("ideal")
+        )
+        self.menu_frecuencia.add_command(
+            label="Pasa Bajas - Gaussiano",
+            command=lambda: self._aplicar_fft_lowpass("gaussiano")
+        )
+        self.menu_frecuencia.add_command(
+            label="Pasa Bajas - Butterworth",
+            command=lambda: self._aplicar_fft_lowpass("butterworth")
+        )
 
+        self.menu_frecuencia.add_separator()
 
+        # Pasa altas
+        self.menu_frecuencia.add_command(
+            label="Pasa Altas - Ideal",
+            command=lambda: self._aplicar_fft_highpass("ideal")
+        )
+        self.menu_frecuencia.add_command(
+            label="Pasa Altas - Gaussiano",
+            command=lambda: self._aplicar_fft_highpass("gaussiano")
+        )
+        self.menu_frecuencia.add_command(
+            label="Pasa Altas - Butterworth",
+            command=lambda: self._aplicar_fft_highpass("butterworth")
+        )
 
+        self.menu_frecuencia.add_separator()
+
+        # DCT Compresión
+        self.menu_frecuencia.add_command(
+            label="Compresión DCT",
+            command=self._aplicar_dct_compresion
+        )
+
+    def _aplicar_fft_lowpass(self, filtro_tipo: str):
+        """Aplica filtro pasa bajas en frecuencia."""
+        if self.imagen_original_cv is None:
+            messagebox.showwarning("Aviso", "Primero carga una imagen.")
+            return
+
+        # Diálogo para parámetros
+        cutoff = simpledialog.askfloat(
+            "Filtro Pasa Bajas",
+            "Radio de corte (0.05 - 0.5):",
+            initialvalue=0.15,
+            minvalue=0.01,
+            maxvalue=0.5
+        )
+        if cutoff is None:
+            return
+
+        orden = 2
+        if filtro_tipo == "butterworth":
+            orden = simpledialog.askinteger(
+                "Orden Butterworth",
+                "Orden (1-10):",
+                initialvalue=2,
+                minvalue=1,
+                maxvalue=10
+            )
+            if orden is None:
+                return
+
+        try:
+            resultado, _ = aplicar_filtro_fft(
+                self.imagen_original_cv,
+                filtro=filtro_tipo,
+                tipo="lowpass",
+                cutoff=cutoff,
+                orden=orden
+            )
+            self._actualizar_resultado(resultado)
+            self.text_info.delete("1.0", tk.END)
+            self.text_info.insert(
+                tk.END,
+                f"Filtro pasa bajas {filtro_tipo.upper()} aplicado.\n"
+                f"Cutoff: {cutoff}\nOrden: {orden}\n"
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al aplicar filtro: {str(e)}")
+
+    def _aplicar_fft_highpass(self, filtro_tipo: str):
+        """Aplica filtro pasa altas en frecuencia."""
+        if self.imagen_original_cv is None:
+            messagebox.showwarning("Aviso", "Primero carga una imagen.")
+            return
+
+        # Diálogo para parámetros
+        cutoff = simpledialog.askfloat(
+            "Filtro Pasa Altas",
+            "Radio de corte (0.05 - 0.5):",
+            initialvalue=0.15,
+            minvalue=0.01,
+            maxvalue=0.5
+        )
+        if cutoff is None:
+            return
+
+        orden = 2
+        if filtro_tipo == "butterworth":
+            orden = simpledialog.askinteger(
+                "Orden Butterworth",
+                "Orden (1-10):",
+                initialvalue=2,
+                minvalue=1,
+                maxvalue=10
+            )
+            if orden is None:
+                return
+
+        try:
+            resultado, _ = aplicar_filtro_fft(
+                self.imagen_original_cv,
+                filtro=filtro_tipo,
+                tipo="highpass",
+                cutoff=cutoff,
+                orden=orden
+            )
+            self._actualizar_resultado(resultado)
+            self.text_info.delete("1.0", tk.END)
+            self.text_info.insert(
+                tk.END,
+                f"Filtro pasa altas {filtro_tipo.upper()} aplicado.\n"
+                f"Cutoff: {cutoff}\nOrden: {orden}\n"
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al aplicar filtro: {str(e)}")
+
+    def _aplicar_dct_compresion(self):
+        """Aplica compresión DCT."""
+        if self.imagen_original_cv is None:
+            messagebox.showwarning("Aviso", "Primero carga una imagen.")
+            return
+
+        q_factor = simpledialog.askfloat(
+            "Compresión DCT",
+            "Factor de cuantización (0.1 - 1.0):",
+            initialvalue=0.5,
+            minvalue=0.1,
+            maxvalue=1.0
+        )
+        if q_factor is None:
+            return
+
+        try:
+            resultado, psnr = dct_compresion(self.imagen_original_cv, q_factor=q_factor)
+            self._actualizar_resultado(resultado)
+            self.text_info.delete("1.0", tk.END)
+            self.text_info.insert(
+                tk.END,
+                f"Compresión DCT aplicada.\n"
+                f"Factor q: {q_factor}\n"
+                f"PSNR: {psnr:.2f} dB\n"
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al comprimir: {str(e)}")
+
+    # ==========================================================
+    # VISUALIZACIÓN DE SECUENCIA DE TRANSFORMACIONES
+    # ==========================================================
+    def _reset_transformacion_stack(self):
+        """Resetea la pila de transformaciones cuando se (des)marca 'Modificar sobre la marcha'."""
+        if not self.modificar_sobre_marcha.get():
+            self._transformacion_stack.clear()
+            self._transformacion_nombres.clear()
+        else:
+            # Si se habilita, comenzar nueva secuencia desde imagen actual
+            self._transformacion_stack = [self.imagen_actual_cv.copy()] if self.imagen_actual_cv is not None else []
+            self._transformacion_nombres = ["Original (Inicio)"] if self.imagen_actual_cv is not None else []
+
+    def _visualizar_secuencia(self):
+        """Abre ventana con visualización paso a paso de todas las transformaciones."""
+        if not self._transformacion_stack:
+            messagebox.showinfo("Secuencia", "No hay transformaciones registradas.\n\nMarca 'Modificar sobre la marcha' y aplica operaciones.")
+            return
+
+        # Crear ventana nueva
+        ventana_sec = tk.Toplevel(self.root)
+        ventana_sec.title("Secuencia de Transformaciones")
+        ventana_sec.geometry("1000x700")
+
+        # Frame para controles
+        frame_ctrl = ttk.Frame(ventana_sec)
+        frame_ctrl.pack(fill=tk.X, padx=10, pady=10)
+
+        lbl_info = ttk.Label(frame_ctrl, text=f"Total de pasos: {len(self._transformacion_stack)}")
+        lbl_info.pack(side=tk.LEFT, padx=5)
+
+        # Slider para navegar
+        self.slider_secuencia = ttk.Scale(
+            frame_ctrl,
+            from_=0,
+            to=len(self._transformacion_stack) - 1,
+            orient=tk.HORIZONTAL,
+            command=self._actualizar_preview_secuencia
+        )
+        self.slider_secuencia.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
+        self.slider_secuencia.set(0)
+
+        # Label del paso actual
+        self.lbl_paso = ttk.Label(frame_ctrl, text="Paso 0")
+        self.lbl_paso.pack(side=tk.LEFT, padx=5)
+
+        # Frame para imagen
+        frame_img = ttk.LabelFrame(ventana_sec, text="Preview")
+        frame_img.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.label_preview_sec = ttk.Label(frame_img)
+        self.label_preview_sec.pack(expand=True)
+
+        # Frame para historial de nombres
+        frame_list = ttk.LabelFrame(ventana_sec, text="Historial de Transformaciones")
+        frame_list.pack(fill=tk.X, padx=10, pady=10)
+
+        # Listbox con scroll
+        scrollbar = ttk.Scrollbar(frame_list)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        listbox = tk.Listbox(frame_list, yscrollcommand=scrollbar.set, height=6)
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=listbox.yview)
+
+        for i, nombre in enumerate(self._transformacion_nombres):
+            listbox.insert(tk.END, f"{i}: {nombre}")
+
+        # Mostrar primer paso
+        self._actualizar_preview_secuencia(0)
+
+    def _actualizar_preview_secuencia(self, valor):
+        """Actualiza preview de secuencia según posición del slider."""
+        idx = int(float(valor))
+        if idx < 0 or idx >= len(self._transformacion_stack):
+            return
+
+        img_cv = self._transformacion_stack[idx]
+        nombre = self._transformacion_nombres[idx] if idx < len(self._transformacion_nombres) else "?"
+
+        # Redimensionar para preview
+        h, w = img_cv.shape[:2]
+        max_dim = 800
+        if max(h, w) > max_dim:
+            scale = max_dim / float(max(h, w))
+            img_cv = cv2.resize(img_cv, (int(w * scale), int(h * scale)))
+
+        # Convertir a PIL y mostrar
+        if len(img_cv.shape) == 2:
+            # Gris
+            img_pil = Image.fromarray(img_cv, mode='L')
+        else:
+            # Color BGR a RGB
+            img_rgb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)
+            img_pil = Image.fromarray(img_rgb)
+
+        img_tk = ImageTk.PhotoImage(img_pil)
+        self.label_preview_sec.config(image=img_tk)
+        self.label_preview_sec.image = img_tk
+
+        self.lbl_paso.config(text=f"Paso {idx}: {nombre}")
 
